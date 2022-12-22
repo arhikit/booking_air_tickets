@@ -16,11 +16,11 @@
 
 ## Схема данных
 
-![Схема данных](https://gitlab.com/mts-teta/dive-into-golang_students_2/3-Avmor/project/raw/main/documentation/schemaDatabase.jpg)
+![Схема данных](https://github.com/arhikit/booking_air_tickets/raw/main/documentation/schemaDatabase.jpg)
 
 ## Схема изменения статусов билета
 
-![Схема изменения статусов билета](https://gitlab.com/mts-teta/dive-into-golang_students_2/3-Avmor/project/raw/main/documentation/schemaStatuses.jpg)
+![Схема изменения статусов билета](https://github.com/arhikit/booking_air_tickets/raw/main/documentation/schemaStatuses.jpg)
 
 Схема описывает варианты изменения статусов, а также временные ограничения для выполнения операций:
 - Создание билета возможно не позднее, чем за 2 часа до вылета.
@@ -40,7 +40,7 @@
 
 Результат выполнения запроса `http://localhost:8080/api/v1/flights?departureCityId=c76146c4-0f13-449b-9000-0cd02ec060bc&arrivalCityId=8c190755-a832-4c19-9b3d-6cae81155f90&departureDate=2022-12-20`.
 
-![GetFlights](https://gitlab.com/mts-teta/dive-into-golang_students_2/3-Avmor/project/raw/main/documentation/GetFlights.PNG)
+![GetFlights](https://github.com/arhikit/booking_air_tickets/raw/main/documentation/GetFlights.PNG)
 
 ### Получение рейса по id
 
@@ -52,7 +52,7 @@
 
 Результат выполнения запроса `http://localhost:8080/api/v1/flights/vacant_seats/02b53737-852b-43b7-a7e9-cd49bf5c2879`.
 
-![GetFlightVacantSeats](https://gitlab.com/mts-teta/dive-into-golang_students_2/3-Avmor/project/raw/main/documentation/GetFlightVacantSeats.PNG)
+![GetFlightVacantSeats](https://github.com/arhikit/booking_air_tickets/raw/main/documentation/GetFlightVacantSeats.PNG)
 
 ### Создание билета
 
@@ -151,7 +151,7 @@
 
 Результат выполнения запроса `http://localhost:8080/api/v1/tickets/04e7fc13-fa3f-4202-8284-d47e99d277c4`.
 
-![GetTicketById](https://gitlab.com/mts-teta/dive-into-golang_students_2/3-Avmor/project/raw/main/documentation/GetTicketById.PNG)
+![GetTicketById](https://github.com/arhikit/booking_air_tickets/raw/main/documentation/GetTicketById.PNG)
 
 ### Получение информации о пользователе по id.
 
@@ -159,4 +159,4 @@
 
 Результат выполнения запроса `http://localhost:8080/api/v1/users/c651e4a2-8a35-4d09-ba46-24b3975d4939`.
 
-![GetUserById](https://gitlab.com/mts-teta/dive-into-golang_students_2/3-Avmor/project/raw/main/documentation/GetUserById.PNG)
+![GetUserById](https://github.com/arhikit/booking_air_tickets/raw/main/documentation/GetUserById.PNG)
