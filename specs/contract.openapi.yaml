@@ -1,0 +1,806 @@
+openapi: 3.0.3
+info:
+  title: Homework
+  description: Homework
+  version: 1.0.0
+servers:
+  - url: 'https'
+
+paths:
+  /v1/users/{id}:
+    get:
+      tags:
+        - user
+      operationId: getUserById
+      summary: Информация о пользователе.
+      description: Информация о пользователе по id.
+      parameters:
+        - "$ref": "#/components/parameters/UUIDPathObjectID"
+      responses:
+        '200':
+          description: Данные пользователя.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+  /v1/flights:
+    get:
+      tags:
+        - flight
+      operationId: getFlights
+      summary: Получить список рейсов.
+      description: Получить список рейсов по заданному отбору (город вылета, город прилета, дата вылета).
+      parameters:
+        - name: "departureCityId"
+          description: Идентификатор города вылета
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "arrivalCityId"
+          description: Идентификатор города прилета
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "departureDate"
+          description: Дата вылета
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: 2022-12-22
+      responses:
+        '200':
+          description: Успешный ответ.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Flight"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+  /v1/flights/{id}:
+    get:
+      tags:
+        - flight
+      operationId: getFlightById
+      summary: Информация о рейсе.
+      description: Информация о рейсе по id.
+      parameters:
+        - "$ref": "#/components/parameters/UUIDPathObjectID"
+      responses:
+        '200':
+          description: Данные рейса.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flight"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+  /v1/flights/vacant_seats/{id}:
+    get:
+      tags:
+        - flight
+      operationId: getFlightVacantSeats
+      summary: Информация о свободных местах рейса.
+      description: Информация о свободных местах по id рейса.
+      parameters:
+        - "$ref": "#/components/parameters/UUIDPathObjectID"
+      responses:
+        '200':
+          description: Данные о свободных местах рейса.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VacantSeats"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+  /v1/tickets/{id}:
+    get:
+      tags:
+        - ticket
+      operationId: getTicketById
+      summary: Информация о билете.
+      description: Информация о билете по id.
+      parameters:
+        - "$ref": "#/components/parameters/UUIDPathObjectID"
+      responses:
+        '200':
+          description: Данные билета.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+  /v1/tickets:
+    post:
+      tags:
+        - ticket
+      operationId: createTicket
+      summary: Создание билета.
+      description: Создание билета. В теле запроса передаются параметры, необходимые для оформления билета на рейс.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ParamsCreateTicket"
+      responses:
+        '200':
+          description: Id созданного билета.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedItem"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+  /v1/tickets/pay:
+    put:
+      tags:
+        - ticket
+      operationId: payForTicket
+      summary: Оплата билета.
+      description: Оплата билета. В теле запроса передаются параметры, необходимые для оформления оплаты билета.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ParamsPayForTicket"
+      responses:
+        '200':
+          description: Id оплаченного билета.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatedItem"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+  /v1/tickets/refund:
+    put:
+      tags:
+        - ticket
+      operationId: refundTicket
+      summary: Возврат билета.
+      description: Возврат билета. В теле запроса передаются параметры, необходимые для оформления возврата билета.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ParamsRefundTicket"
+      responses:
+        '200':
+          description: Id вовзращенного билета.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatedItem"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+  /v1/tickets/register:
+    put:
+      tags:
+        - ticket
+      operationId: registerTicket
+      summary: Онлайн-регистрация билета.
+      description: Онлайн-регистрация билета. В теле запроса передаются параметры, необходимые для оформления регистрации на рейс.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ParamsRegisterTicket"
+      responses:
+        '200':
+          description: Id зарегистрированного билета.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatedItem"
+        default:
+          $ref: "#/components/responses/DefaultErrResponse"
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - balance
+      properties:
+        id:
+          type: string
+          description: Идентификатор пользователя
+          format: uuid
+        name:
+          type: string
+          description: Имя пользователя
+          example: aaryaz10
+        email:
+          type: string
+          description: Электронная почта пользователя
+          example: aaryaz10@gmail.com
+        balance:
+          type: object
+          required:
+            - sumPurchases
+            - sumBonuses
+          properties:
+            sumPurchases:
+              type: integer
+              description: Сумма покупок.
+              example: 15000
+            sumBonuses:
+              type: integer
+              description: Сумма бонусов.
+              example: 500
+
+    Flight:
+      type: object
+      required:
+        - id
+        - name
+        - airline
+        - departure
+        - arrival
+        - date
+        - pricesTickets
+        - priceAdditionalBaggage
+        - priceSeatSelection
+        - isInternational
+        - baggageIncluded
+        - petAllowed
+      properties:
+        id:
+          type: string
+          description: Идентификатор рейса
+          format: uuid
+        name:
+          type: string
+          description: Название рейса
+          example: SU 5360
+
+        airline:
+          type: object
+          required:
+            - airlineId
+            - airlineName
+            - aircraftId
+            - aircraftName
+          properties:
+            airlineId:
+              type: string
+              description: Идентификатор авиакомпании
+              format: uuid
+            airlineName:
+              type: string
+              description: Название авиакомпании
+              example: Aeroflot
+            aircraftId:
+              type: string
+              description: Идентификатор самолета, выполняющего рейс
+              format: uuid
+            aircraftName:
+              type: string
+              description: Наименование самолета
+              example: Airbus A320
+
+        departure:
+          type: object
+          required:
+            - cityId
+            - cityName
+            - airportId
+            - airportName
+          properties:
+            cityId:
+              type: string
+              description: Идентификатор города вылета
+              format: uuid
+            cityName:
+              type: string
+              description: Наименование города вылета
+              example: Moscow
+            airportId:
+              type: string
+              description: Идентификатор аэропорта вылета
+              format: uuid
+            airportName:
+              type: string
+              description: Наименование аэропорта вылета
+              example: SVO Sheremetyevo
+
+        arrival:
+          type: object
+          required:
+            - cityId
+            - cityName
+            - airportId
+            - airportName
+          properties:
+            cityId:
+              type: string
+              description: Идентификатор города прилета
+              format: uuid
+            cityName:
+              type: string
+              description: Наименование города прилета
+              example: Sochi
+            airportId:
+              type: string
+              description: Идентификатор аэропорта прилета
+              format: uuid
+            airportName:
+              type: string
+              description: Наименование аэропорта прилета
+              example: AER Adler
+
+        date:
+          type: object
+          required:
+            - departure
+            - arrival
+            - duration
+          properties:
+            departure:
+              type: string
+              description: Дата и время вылета
+              format: date-time
+              example: 2022-12-02T17:00:00Z
+            arrival:
+              type: string
+              description: Дата и время прилета
+              format: date-time
+              example: 2022-12-02T22:00:00Z
+            duration:
+              type: integer
+              description: Продолжительность полета в минутах
+              example: 90
+
+        pricesTickets:
+          type: array
+          description: Цены билетов в зависимости от класса места.
+          items:
+            $ref: "#/components/schemas/FlightPrice"
+
+        priceAdditionalBaggage:
+          type: integer
+          description: Стоимость дополнительного багажа.
+          example: 900
+        priceSeatSelection:
+          type: integer
+          description: Стоимость выбора места.
+          example: 500
+
+        isInternational:
+          type: boolean
+          description: Признак международного рейса
+          example: false
+        baggageIncluded:
+          type: boolean
+          description: Признак наличия багажа
+          example: false
+        petAllowed:
+          type: boolean
+          description: Признак возможности перевоза животных
+          example: false
+
+    FlightPrice:
+      type: object
+      required:
+        - classSeatsId
+        - classSeatsName
+        - countVacantSeats
+        - priceTicket
+      properties:
+        classSeatsId:
+          type: string
+          description: Идентификатор класса места.
+          format: uuid
+        classSeatsName:
+          type: string
+          description: Наименование класса места
+          example: Economy
+        countVacantSeats:
+          type: integer
+          description: Количество свободных мест.
+          example: 10
+        priceTicket:
+          type: integer
+          description: Стоимость билета.
+          example: 6000
+
+    VacantSeats:
+      type: object
+      required:
+        - classSeatsId
+        - classSeatsName
+        - countVacantSeats
+        - seats
+      properties:
+        classSeatsId:
+          type: string
+          description: Идентификатор класса места.
+          format: uuid
+        classSeatsName:
+          type: string
+          description: Наименование класса места
+          example: Economy
+        countVacantSeats:
+          type: integer
+          description: Количество свободных мест.
+          example: 10
+        seats:
+          type: array
+          description: Свободные места на рейсе.
+          items:
+            $ref: "#/components/schemas/Seat"
+
+    Seat:
+      type: object
+      required:
+        - id
+        - number
+      properties:
+        id:
+          type: string
+          description: Идентификатор места в самолете
+          format: uuid
+        number:
+          type: string
+          description: Номер места в самолете
+          example: A1
+
+    Ticket:
+      type: object
+      required:
+        - id
+        - status
+        - flight
+        - user
+        - passenger
+        - seat
+        - сountAdditionalBaggage
+        - price
+        - paidWithBonuses
+        - accruedBonuses
+      properties:
+        id:
+          type: string
+          description: Идентификатор билета.
+          format: uuid
+
+        status:
+          type: object
+          required:
+            - name
+            - timestamp
+          properties:
+            name:
+              type: string
+              description: Наименование статуса
+              example: Paid
+            timestamp:
+              type: string
+              description: Дата и время установки статуса
+              format: date-time
+              example: 2022-12-02T22:00:00Z
+
+        flight:
+          type: object
+          required:
+            - id
+            - name
+            - airline
+            - aircraft
+            - departureCity
+            - departureAirport
+            - departureDate
+            - arrivalCity
+            - arrivalAirport
+            - arrivalDate
+            - duration
+          properties:
+            id:
+              type: string
+              description: Идентификатор рейса
+              format: uuid
+            name:
+              type: string
+              description: Название рейса
+              example: SU 5360
+            airline:
+              type: string
+              description: Название авиакомпании
+              example: Aeroflot
+            aircraft:
+              type: string
+              description: Наименование самолета
+              example: Airbus A320
+            departureCity:
+              type: string
+              description: Наименование города вылета
+              example: Moscow
+            departureAirport:
+              type: string
+              description: Наименование аэропорта вылета
+              example: SVO Sheremetyevo
+            departureDate:
+              type: string
+              description: Дата и время вылета
+              format: date-time
+              example: 2022-12-02T17:00:00Z
+            arrivalCity:
+              type: string
+              description: Наименование города прилета
+              example: Sochi
+            arrivalAirport:
+              type: string
+              description: Наименование аэропорта прилета
+              example: AER Adler
+            arrivalDate:
+              type: string
+              description: Дата и время прилета
+              format: date-time
+              example: 2022-12-02T22:00:00Z
+            duration:
+              type: integer
+              description: Продолжительность полета в минутах
+              example: 90
+
+        user:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+              description: Идентификатор пользователя
+              format: uuid
+            name:
+              type: string
+              description: Имя пользователя
+              example: Favorite user
+
+        passenger:
+          type: object
+          required:
+            - id
+            - name
+            - identityData
+          properties:
+            id:
+              type: string
+              description: Идентификатор пассажира.
+              format: uuid
+            name:
+              type: string
+              description: ФИО пассажира.
+              example: Иванов Иван Иванович
+            identityData:
+              type: string
+              description: Паспортные данные пассажира.
+              example: паспорт, серия 1111, номер 111111
+
+        seat:
+          type: object
+          required:
+            - classSeatsId
+            - classSeatsName
+          properties:
+            seatId:
+              type: string
+              description: Идентификатор места в самолете
+              format: uuid
+            seatNumber:
+              type: string
+              description: Номер места в самолете
+              example: A1
+            classSeatsId:
+              type: string
+              description: Идентификатор класса места
+              format: uuid
+            classSeatsName:
+              type: string
+              description: Наименование класса места
+              example: Economy
+
+        сountAdditionalBaggage:
+          type: integer
+          description: Количество мест дополнительного багажа.
+          example: 1
+        price:
+          type: integer
+          description: Цена билета в рублях.
+          example: 3000
+        paidWithBonuses:
+          type: integer
+          description: Сумма бонусов, использованных для оплаты билета.
+          example: 500
+        accruedBonuses:
+          type: integer
+          description: Сумма бонусов, начисленных за билет.
+          example: 150
+
+    ParamsCreateTicket:
+      type: object
+      required:
+        - flightId
+        - userId
+        - classSeatsId
+        - countAdditionalBaggage
+      properties:
+        flightId:
+          type: string
+          description: Идентификатор рейса.
+          format: uuid
+        userId:
+          type: string
+          description: Идентификатор пользователя, выполняющего оформление билета.
+          format: uuid
+        passengerId:
+          type: string
+          description: Идентификатор пассажира. Заполняется, если выбран существующий пассажир, а не создается новый.
+          format: uuid
+        namePassenger:
+          type: string
+          description: ФИО пассажира. Заполняется, если будет создаваться пассажир, а не выбираться существующий.
+          example: Иванов Иван Иванович
+        identityDataPassenger:
+          type: string
+          description: Паспортные данные пассажира. Заполняется, если будет создаваться пассажир, а не выбираться существующий.
+          example: паспорт, серия 1111, номер 111111
+        classSeatsId:
+          type: string
+          description: Идентификатор класса места.
+          format: uuid
+        seatId:
+          type: string
+          description: Идентификатор места в самолете. Заполняется, если при оформлении билета сразу покупается определенное место.
+          format: uuid
+        countAdditionalBaggage:
+          type: integer
+          description: Количество мест дополнительного багажа.
+          example: 1
+
+    ParamsPayForTicket:
+      type: object
+      required:
+        - ticketId
+        - userId
+        - paidWithBonuses
+      properties:
+        ticketId:
+          type: string
+          description: Идентификатор билета для оплаты.
+          format: uuid
+        userId:
+          type: string
+          description: Идентификатор пользователя, выполняющего оплату билета.
+          format: uuid
+        paidWithBonuses:
+          type: integer
+          description: Сумма бонусов для оплаты.
+          example: 500
+
+    ParamsRefundTicket:
+      type: object
+      required:
+        - ticketId
+        - userId
+      properties:
+        ticketId:
+          type: string
+          description: Идентификатор возвращаемого билета.
+          format: uuid
+        userId:
+          type: string
+          description: Идентификатор пользователя, выполняющего возврат билета.
+          format: uuid
+
+    ParamsRegisterTicket:
+      type: object
+      required:
+        - ticketId
+        - userId
+      properties:
+        ticketId:
+          type: string
+          description: Идентификатор регистрируемого билета.
+          format: uuid
+        userId:
+          type: string
+          description: Идентификатор пользователя, выполняющего регистрацию на рейс.
+          format: uuid
+        seatId:
+          type: string
+          description: Идентификатор места в самолете. Заполняется, если ранее при покупке билета не было выбрано определенное место.
+          format: uuid
+
+    CreatedItem:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "ID созданного объекта"
+          example: "528753ae-e7ca-4b1a-8921-e7753d03646c"
+
+    UpdatedItem:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "ID обновленного объекта"
+          example: "adf129fa-83b4-4e19-9338-d8b68c4bc199"
+
+    APIError:
+      type: object
+      required:
+        - HTTPStatusCode
+        - code
+        - message
+      properties:
+        "HTTPStatusCode":
+          type: integer
+          description: "Код состояния HTTP"
+          example: ""
+        code:
+          type: string
+          description: "Код ошибки"
+          example: ""
+        message:
+          type: string
+          description: "Сообщение об ошибке"
+          example: ""
+
+  parameters:
+    UUIDPathObjectID:
+      name: id
+      in: path
+      required: true
+      description: id запрашиваемого объекта
+      example: "5734ba7b-1b63-444b-b5b4-489309f642c5"
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    DefaultErrResponse:
+      default:
+        description: unexpected error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
