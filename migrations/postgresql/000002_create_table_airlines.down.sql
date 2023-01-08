@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS airlines;
+DROP TABLE airlines;

@@ -302,24 +302,65 @@ func (s storage) CreateTicket(ctx context.Context, paramsCreateTicket *ticketsDo
 	}
 	defer conn.Release()
 
-	// в зависимости от параметров входящего post-запроса генерируем различные sql-запросы
+	// начало транзакции
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return uuid.UUID{}, terr.SQLDatabaseError(err)
+	}
+	defer tx.Rollback(ctx)
+
+	// пакетный запрос
+	batch := new(pgx.Batch)
+
+	// добавление заданий в пакет
+	var arrParams []interface{}
 	var sqlQuery string
 
-	// указываем параметры запроса
+	// 1. Создание пассажира (passengers)
+	var passengerId uuid.UUID
+	if paramsCreateTicket.PassengerId == nil {
+		passengerId = uuid.New()
+		arrParams = []interface{}{
+			passengerId.String(),
+			paramsCreateTicket.UserId.String(),
+			paramsCreateTicket.ParamsCreatePassenger.NamePassenger,
+			paramsCreateTicket.ParamsCreatePassenger.IdentityDataPassenger,
+		}
+		sqlQuery = `INSERT INTO passengers (
+	 		            	id,
+	 		                user_id,
+	 		                name_passenger,
+	 		                identity_data_passenger
+	 					)
+	 					VALUES (
+	 						$1,
+	 				        $2,
+	 				        $3,
+	 				        $4
+	 					);`
+		batch.Queue(sqlQuery, arrParams...)
+	} else {
+		passengerId = *paramsCreateTicket.PassengerId
+	}
+
+	// 2. Создание билета (tickets)
 	ticketId := uuid.New()
-	arrParams := []interface{}{
+	arrParams = []interface{}{
 		ticketId.String(),
 		paramsCreateTicket.StatusTimestamp,
 		paramsCreateTicket.FlightId.String(),
 		paramsCreateTicket.UserId.String(),
+		passengerId.String(),
 		paramsCreateTicket.ClassSeatsId.String(),
 		paramsCreateTicket.CountAdditionalBaggage,
 		paramsCreateTicket.Price,
 	}
 
-	// указываем текст запроса для создания билета.
 	if paramsCreateTicket.SeatId != nil {
 		// создание билета с выбранным местом
+		arrParams = append(arrParams,
+			paramsCreateTicket.SeatId.String(),
+		)
 		sqlQuery = `
 	 		INSERT INTO tickets (
 	 		            	id,
@@ -327,13 +368,13 @@ func (s storage) CreateTicket(ctx context.Context, paramsCreateTicket *ticketsDo
 							status_timestamp,
 	 		                flight_id,
 	 		                user_id,
+	 		            	passenger_id,
 	 		                class_seats_id,
 	 		                count_additional_baggage,
 	 		                price,
 	 		                paid_with_bonuses,
 	 		                accrued_bonuses,
-							seat_id,
-	 		            	passenger_id
+							seat_id
 	 				)
 	 				VALUES (
 	 						$1,
@@ -344,11 +385,11 @@ func (s storage) CreateTicket(ctx context.Context, paramsCreateTicket *ticketsDo
 	 				        $5,
 	 				        $6,
 	 				        $7,
-							0,
-							0,
 							$8,
+							0,
+							0,
 	 				        $9
-	 				)`
+	 				);`
 	} else {
 		// создание билета без выбранного места
 		sqlQuery = `
@@ -358,12 +399,12 @@ func (s storage) CreateTicket(ctx context.Context, paramsCreateTicket *ticketsDo
 							status_timestamp,
 	 		                flight_id,
 	 		                user_id,
+	 		            	passenger_id,
 	 		                class_seats_id,
 	 		                count_additional_baggage,
 	 		                price,
 	 		                paid_with_bonuses,
-	 		                accrued_bonuses,
-	 		            	passenger_id
+	 		                accrued_bonuses
 	 				)
 	 				VALUES (
 	 						$1,
@@ -374,73 +415,26 @@ func (s storage) CreateTicket(ctx context.Context, paramsCreateTicket *ticketsDo
 	 				        $5,
 	 				        $6,
 	 				        $7,
+							$8,
 							0,
-							0,
-							$8
-					)`
+							0
+					);`
 	}
+	batch.Queue(sqlQuery, arrParams...)
 
-	// добавляем параметры запроса в зависимости от того,
-	// будет или нет создаваться пассажир и будет ли указываться место.
-	// при создании пассажира добавляется запрос на создание пассажира
-	if paramsCreateTicket.PassengerId == nil && paramsCreateTicket.SeatId != nil {
-		// создание пассажира и создание билета с выбранным местом
-		arrParams = append(arrParams,
-			paramsCreateTicket.SeatId.String(),
-			uuid.New().String(),
-			paramsCreateTicket.ParamsCreatePassenger.NamePassenger,
-			paramsCreateTicket.ParamsCreatePassenger.IdentityDataPassenger,
-		)
-		sqlQuery = `WITH A AS (INSERT INTO passengers (
-	 		            	id,
-	 		                user_id,
-	 		                name_passenger,
-	 		                identity_data_passenger
-	 					)
-	 					VALUES (
-	 						$9,
-	 				        $4,
-	 				        $10,
-	 				        $11
-	 					))` + sqlQuery
-	} else if paramsCreateTicket.PassengerId == nil && paramsCreateTicket.SeatId == nil {
-		// создание пассажира и создание билета без выбранного места
-		arrParams = append(arrParams,
-			uuid.New().String(),
-			paramsCreateTicket.ParamsCreatePassenger.NamePassenger,
-			paramsCreateTicket.ParamsCreatePassenger.IdentityDataPassenger,
-		)
-		sqlQuery = `WITH A AS (INSERT INTO passengers (
-	 		            	id,
-	 		                user_id,
-	 		                name_passenger,
-	 		                identity_data_passenger
-	 					)
-	 					VALUES (
-	 						$8,
-	 				        $4,
-	 				        $9,
-	 				        $10
-	 					))` + sqlQuery
-	} else if paramsCreateTicket.PassengerId != nil && paramsCreateTicket.SeatId != nil {
-		// используется существующий пассажир и создание билета с выбранным местом
-		arrParams = append(arrParams,
-			paramsCreateTicket.SeatId.String(),
-			paramsCreateTicket.PassengerId.String(),
-		)
-	} else if paramsCreateTicket.PassengerId != nil && paramsCreateTicket.SeatId == nil {
-		// используется существующий пассажир и создание билета без выбранного места
-		arrParams = append(arrParams,
-			paramsCreateTicket.PassengerId.String(),
-		)
-	}
+	// отправка пакета в БД
+	res := tx.SendBatch(ctx, batch)
 
-	rows, err := conn.Query(ctx, sqlQuery, arrParams...)
-	defer rows.Close()
-
-	if err != nil {
+	// операция закрытия соединения
+	if err = res.Close(); err != nil {
 		return uuid.UUID{}, terr.SQLDatabaseError(err)
 	}
+
+	// подтверждение транзакции
+	if err = tx.Commit(ctx); err != nil {
+		return uuid.UUID{}, terr.SQLDatabaseError(err)
+	}
+
 	return ticketId, nil
 }
 
@@ -452,69 +446,84 @@ func (s storage) PayForTicket(ctx context.Context, paramsPayForTicket *ticketsDo
 	}
 	defer conn.Release()
 
-	// в зависимости от параметров входящего post-запроса генерируем различные sql-запросы
-	var sqlQuery string
+	// начало транзакции
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return uuid.UUID{}, terr.SQLDatabaseError(err)
+	}
+	defer tx.Rollback(ctx)
 
-	// Билету (tickets) устанавливаются:
+	// пакетный запрос
+	batch := new(pgx.Batch)
+
+	// добавление заданий в пакет
+
+	// 1. Изменение билета (tickets). Билету  устанавливаются:
 	// - статус status_id = 2(Paid) и время изменения статуса status_timestamp
 	// - сумма начисляемых бонусных баллов accrued_bonuses
 	// - сумма бонусов, использованных для оплаты билета paid_with_bonuses
-	sqlQuery = `
-     		UPDATE tickets
-				SET status_id = 2, 
-					status_timestamp = $2, 
-					paid_with_bonuses = $3, 
-					accrued_bonuses = $4 
-   			WHERE id = $1`
-
-	// указываем параметры запроса
 	arrParams := []interface{}{
 		paramsPayForTicket.TicketId.String(),
 		paramsPayForTicket.StatusTimestamp,
 		paramsPayForTicket.PaidWithBonuses,
 		paramsPayForTicket.AccruedBonuses,
 	}
+	sqlQuery := `UPDATE tickets
+					SET status_id = 2, 
+						status_timestamp = $2, 
+						paid_with_bonuses = $3, 
+						accrued_bonuses = $4 
+					WHERE id = $1`
+	batch.Queue(sqlQuery, arrParams...)
 
-	// Если для пользователя еще не заполнен баланс, то добавляется запись в таблицу users_balance.
-	// Сумма покупок sum_purchases устанавливается равной стоимости билета.
+	// 2. Изменения баланса пользователя (users_balance).
 	if !paramsPayForTicket.UserBalanceInit {
-		arrParams = append(arrParams,
+		// Если для пользователя еще не заполнен баланс, то добавляется запись в таблицу users_balance.
+		// Сумма покупок sum_purchases устанавливается равной стоимости билета.
+		arrParams = []interface{}{
 			uuid.New().String(),
 			paramsPayForTicket.UserId.String(),
 			paramsPayForTicket.Price,
-		)
-		sqlQuery = `WITH A AS (INSERT INTO users_balance (
+		}
+		sqlQuery = `INSERT INTO users_balance (
 		            	id,
 		                user_id,
 		                sum_purchases,
 		                sum_bonuses
 					)
 					VALUES (
-						$5,
-				        $6,
-				        $7,
+						$1,
+				        $2,
+				        $3,
 				        0
-					))` + sqlQuery
+					);`
 
 	} else {
-		// Изменения баланса пользователя (users_balance):
+		// Если для пользователя уже заполнен баланс, то изменяется запись в таблице users_balance:
 		// - по пользователю увеличивается общая сумма покупок sum_purchases на стоимость билета.
 		// - по пользователю уменьшается общая сумма бонусов sum_bonuses на сумму бонусов, использованную при покупке билета.
-		arrParams = append(arrParams,
+		arrParams = []interface{}{
 			paramsPayForTicket.UserId.String(),
 			paramsPayForTicket.Price,
 			paramsPayForTicket.PaidWithBonuses,
-		)
-		sqlQuery = `WITH A AS (UPDATE users_balance
-					SET sum_purchases = sum_purchases + $6, 
-						sum_bonuses = sum_bonuses - $7 
-					WHERE user_id = $5)` + sqlQuery
+		}
+		sqlQuery = `UPDATE users_balance
+						SET sum_purchases = sum_purchases + $2, 
+							sum_bonuses = sum_bonuses - $3 
+					WHERE user_id = $1;`
+	}
+	batch.Queue(sqlQuery, arrParams...)
+
+	// отправка пакета в БД
+	res := tx.SendBatch(ctx, batch)
+
+	// операция закрытия соединения
+	if err = res.Close(); err != nil {
+		return uuid.UUID{}, terr.SQLDatabaseError(err)
 	}
 
-	rows, err := conn.Query(ctx, sqlQuery, arrParams...)
-	defer rows.Close()
-
-	if err != nil {
+	// подтверждение транзакции
+	if err = tx.Commit(ctx); err != nil {
 		return uuid.UUID{}, terr.SQLDatabaseError(err)
 	}
 
@@ -530,42 +539,56 @@ func (s storage) RefundTicket(ctx context.Context, paramsRefundTicket *ticketsDo
 	}
 	defer conn.Release()
 
-	// генерируем sql-запрос
-	var sqlQuery string
+	// начало транзакции
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return uuid.UUID{}, terr.SQLDatabaseError(err)
+	}
+	defer tx.Rollback(ctx)
 
-	// Билету (tickets) устанавливаются:
+	// пакетный запрос
+	batch := new(pgx.Batch)
+
+	// добавление заданий в пакет
+
+	// 1. Изменение билета (tickets). Билету  устанавливаются:
 	// - статус status_id = 4(Refunded) и время изменения статуса status_timestamp
-	sqlQuery = `
-     		UPDATE tickets
-				SET status_id = 4, 
-					status_timestamp = $2
-   			WHERE id = $1`
-
-	// указываем параметры запроса
 	arrParams := []interface{}{
 		paramsRefundTicket.TicketId.String(),
 		paramsRefundTicket.StatusTimestamp,
 	}
+	sqlQuery := `UPDATE tickets
+					SET status_id = 4, 
+						status_timestamp = $2
+   					WHERE id = $1;`
+	batch.Queue(sqlQuery, arrParams...)
 
-	// Изменения баланса пользователя (users_balance):
+	// 2. Изменения баланса пользователя (users_balance):
 	// - по пользователю уменьшается общая сумма покупок на стоимость билета.
 	// - по пользователю увеличивается общая сумма бонусов на стоимость билета.
 	// Таким образом, возвращаются на баланс пользователя
 	// и сумма бонусов, использованная при покупке билета paid_with_bonuses,
 	// и сумма оплаченных денег за билет ticket.Price-PaidWithBonuses.
-	arrParams = append(arrParams,
+	arrParams = []interface{}{
 		paramsRefundTicket.UserId.String(),
 		paramsRefundTicket.Price,
-	)
-	sqlQuery = `WITH A AS (UPDATE users_balance
-					SET sum_purchases = sum_purchases - $4, 
-						sum_bonuses = sum_bonuses + $4 
-					WHERE user_id = $3)` + sqlQuery
+	}
+	sqlQuery = `UPDATE users_balance
+					SET sum_purchases = sum_purchases - $2, 
+						sum_bonuses = sum_bonuses + $2 
+					WHERE user_id = $1;`
+	batch.Queue(sqlQuery, arrParams...)
 
-	rows, err := conn.Query(ctx, sqlQuery, arrParams...)
-	defer rows.Close()
+	// отправка пакета в БД
+	res := tx.SendBatch(ctx, batch)
 
-	if err != nil {
+	// операция закрытия соединения
+	if err = res.Close(); err != nil {
+		return uuid.UUID{}, terr.SQLDatabaseError(err)
+	}
+
+	// подтверждение транзакции
+	if err = tx.Commit(ctx); err != nil {
 		return uuid.UUID{}, terr.SQLDatabaseError(err)
 	}
 
@@ -581,48 +604,65 @@ func (s storage) RegisterTicket(ctx context.Context, paramsRegisterTicket *ticke
 	}
 	defer conn.Release()
 
-	// в зависимости от параметров входящего post-запроса генерируем различные sql-запросы
+	// начало транзакции
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return uuid.UUID{}, terr.SQLDatabaseError(err)
+	}
+	defer tx.Rollback(ctx)
+
+	// пакетный запрос
+	batch := new(pgx.Batch)
+
+	// добавление заданий в пакет
+
+	// 1. Изменение билета (tickets). Билету устанавливаются:
+	// - статус status_id = 5(Registered) и время изменения статуса status_timestamp
+	// - место seat_id, если при покупке билета место не было назначено
 	var sqlQuery string
 
-	// указываем параметры запроса
 	arrParams := []interface{}{
-		paramsRegisterTicket.UserId.String(),
-		paramsRegisterTicket.AccruedBonuses,
 		paramsRegisterTicket.TicketId.String(),
 		paramsRegisterTicket.StatusTimestamp,
 	}
-
-	// Изменения баланса пользователя (users_balance):
-	// - по пользователю увеличивается общая сумма бонусов на сумму начисленных за билет бонусов accrued_bonuses
-	sqlQuery = `WITH A AS (UPDATE users_balance
-					SET sum_bonuses = sum_bonuses + $2 
-					WHERE user_id = $1)`
-
-	// Билету (tickets) устанавливаются:
-	// - статус status_id = 5(Registered) и время изменения статуса status_timestamp
-	// - место, если при покупке билета место не было назначено
 	if paramsRegisterTicket.SeatId != nil {
 		arrParams = append(arrParams,
 			paramsRegisterTicket.SeatId,
 		)
-		sqlQuery = sqlQuery + `
-     		UPDATE tickets
-				SET status_id = 5, 
-					status_timestamp = $4,
-				    seat_id = $5
-   			WHERE id = $3`
+		sqlQuery = `UPDATE tickets
+						SET status_id = 5, 
+							status_timestamp = $2,
+				    		seat_id = $3
+   					WHERE id = $1;`
 	} else {
-		sqlQuery = sqlQuery + `
-     		UPDATE tickets
-				SET status_id = 5, 
-					status_timestamp = $4
-   			WHERE id = $3`
+		sqlQuery = `UPDATE tickets
+						SET status_id = 5, 
+							status_timestamp = $2
+   					WHERE id = $1;`
+	}
+	batch.Queue(sqlQuery, arrParams...)
+
+	// 2. Изменения баланса пользователя (users_balance):
+	// - по пользователю увеличивается общая сумма бонусов sum_bonuses на сумму начисленных за билет бонусов accrued_bonuses
+	arrParams = []interface{}{
+		paramsRegisterTicket.UserId.String(),
+		paramsRegisterTicket.AccruedBonuses,
+	}
+	sqlQuery = `UPDATE users_balance
+					SET sum_bonuses = sum_bonuses + $2 
+					WHERE user_id = $1;`
+	batch.Queue(sqlQuery, arrParams...)
+
+	// отправка пакета в БД
+	res := tx.SendBatch(ctx, batch)
+
+	// операция закрытия соединения
+	if err = res.Close(); err != nil {
+		return uuid.UUID{}, terr.SQLDatabaseError(err)
 	}
 
-	rows, err := conn.Query(ctx, sqlQuery, arrParams...)
-	defer rows.Close()
-
-	if err != nil {
+	// подтверждение транзакции
+	if err = tx.Commit(ctx); err != nil {
 		return uuid.UUID{}, terr.SQLDatabaseError(err)
 	}
 

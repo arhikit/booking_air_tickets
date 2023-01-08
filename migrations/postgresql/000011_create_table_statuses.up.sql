@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS statuses(
+CREATE TABLE statuses(
     id          SERIAL PRIMARY KEY,
     name        varchar (10) not null
     );

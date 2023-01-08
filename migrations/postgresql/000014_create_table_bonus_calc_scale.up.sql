@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS bonus_calc_scale(
+CREATE TABLE bonus_calc_scale(
     id                      SERIAL PRIMARY KEY,
     sum_purchases_to        int not null,
     sum_purchases_from      int not null,

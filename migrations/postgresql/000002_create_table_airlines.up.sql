@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS airlines(
+CREATE TABLE airlines(
     id          uuid PRIMARY KEY,
     name        varchar (100) not null
     );

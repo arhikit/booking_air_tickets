@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS bonus_calc_scale;
+DROP TABLE bonus_calc_scale;

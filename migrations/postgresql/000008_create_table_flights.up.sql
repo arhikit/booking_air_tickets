@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS flights(
+CREATE TABLE flights(
     id                          uuid PRIMARY KEY,
     name                        varchar(100) not null,
     aircraft_id                 uuid not null,
@@ -16,6 +16,4 @@ CREATE TABLE IF NOT EXISTS flights(
     FOREIGN KEY (arrival_airport_id) REFERENCES airports (id) ON DELETE CASCADE
     );
 
-CREATE INDEX IF NOT EXISTS idx_flights_aircraft_id ON flights(aircraft_id);
-CREATE INDEX IF NOT EXISTS idx_flights_airport_id ON flights(departure_airport_id, arrival_airport_id);
-CREATE INDEX IF NOT EXISTS idx_flights_airport_id_date ON flights(departure_airport_id, arrival_airport_id, departure_date DESC);
+CREATE INDEX idx_flights_airports_date ON flights(departure_airport_id, arrival_airport_id, departure_date DESC);

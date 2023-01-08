@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS tickets(
+CREATE TABLE tickets(
     id                          uuid PRIMARY KEY,
     status_id                   int not null,
     status_timestamp            timestamptz not null,
@@ -18,9 +18,3 @@ CREATE TABLE IF NOT EXISTS tickets(
     FOREIGN KEY (class_seats_id) REFERENCES classes_seats (id) ON DELETE CASCADE,
     FOREIGN KEY (seat_id) REFERENCES seats (id) ON DELETE CASCADE
     );
-
-CREATE INDEX IF NOT EXISTS idx_tickets_status_id ON tickets(status_id);
-CREATE INDEX IF NOT EXISTS idx_tickets_flight_id ON tickets(flight_id);
-CREATE INDEX IF NOT EXISTS idx_tickets_user_id ON tickets(user_id);
-CREATE INDEX IF NOT EXISTS idx_tickets_passenger_id ON tickets(passenger_id);
-CREATE INDEX IF NOT EXISTS idx_tickets_class_seats_id ON tickets(class_seats_id);

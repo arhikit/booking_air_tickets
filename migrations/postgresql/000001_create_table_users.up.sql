@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS users(
+CREATE TABLE users(
     id          uuid PRIMARY KEY,
     name        varchar (100) not null,
     email       varchar (300) unique not null,
